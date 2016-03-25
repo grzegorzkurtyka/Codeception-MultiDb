@@ -11,6 +11,7 @@ use Codeception\Extension\MultiDb\Utils\CleanupAction;
 use Codeception\Lib\Driver\Db as Driver;
 use Codeception\Exception\ModuleException;
 use Codeception\Exception\ModuleConfigException;
+use Codeception\Configuration as Configuration;
 use Codeception\Module;
 use Codeception\TestCase;
 
@@ -85,6 +86,15 @@ class MultiDb extends Module
         $this->timezone = $this->config['timezone'];
 
         parent::_initialize();
+
+        foreach ($this->config['connectors'] as $connector => $connectorConfig) {
+            if ($connectorConfig['populate']) {
+                if (isset($connectorConfig['cleanup']) && $connectorConfig['cleanup']) {
+                    $this->cleanup($connector);
+                }
+                $this->loadDump($connector);
+            }
+        }
     }
 
     // HOOK: before scenario
@@ -123,6 +133,49 @@ class MultiDb extends Module
         $this->test_cleanup_actions = [];
 
         parent::_after($test);
+    }
+
+    protected function cleanup($connector)
+    {
+        try {
+            $this->getDriver($connector)->cleanup();
+        } catch (\Exception $e) {
+            throw new ModuleException(__CLASS__, $e->getMessage());
+        }
+    }
+    
+    protected function loadDump($connector)
+    {
+        $config = $this->config['connectors'][$connector];
+        $cleanup = isset($config['cleanup']) && $config['cleanup'];
+        $populate = isset($config['populate']) && $config['populate'];
+        if ($config['dump'] && ($cleanup || $populate)) {
+            if (!file_exists(Configuration::projectDir() . $config['dump'])) {
+                throw new ModuleConfigException(
+                    __CLASS__,
+                    "\nFile with dump doesn't exist.
+                      Please, check path for sql file: " . $config['dump']
+                );
+            }
+            $dumpFile = Configuration::projectDir() . $config['dump'];
+            $sql = file_get_contents($dumpFile);
+            $sql = preg_replace('%/\*(?!!\d+)(?:(?!\*/).)*\*/%s', "", $sql);
+            if (!empty($sql)) {
+                $sql = explode("\n", $sql);
+            }
+        }
+        if (!$sql) {
+            return;
+        }
+        try {
+            $this->getDriver($connector)->load($sql);
+            \Codeception\Util\Debug::debug("Loading dump for $connector < {$dumpFile}");
+        } catch (\PDOException $e) {
+            throw new ModuleException(
+                __CLASS__,
+                $e->getMessage() . "\nSQL query being executed: " . $sql
+            );
+        }
     }
 
     // @codingStandardsIgnoreLine overridden function from \Codeception\Module
