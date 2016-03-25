@@ -1,5 +1,5 @@
 {
-    "name": "redmatter/codeception-multidb",
+    "name": "grzegorzkurtyka/codeception-multidb",
     "description": "Switch between multiple databases in a Codeception Test",
     "type": "library",
     "require": {
