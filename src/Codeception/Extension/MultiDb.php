@@ -88,7 +88,8 @@ class MultiDb extends Module
         parent::_initialize();
 
         foreach ($this->config['connectors'] as $connector => $connectorConfig) {
-            if ($connectorConfig['populate']) {
+            $populate = isset($connectorConfig['populate']) && $connectorConfig['populate'];
+            if ($populate) {
                 if (isset($connectorConfig['cleanup']) && $connectorConfig['cleanup']) {
                     $this->cleanup($connector);
                 }
@@ -111,8 +112,6 @@ class MultiDb extends Module
     // @codingStandardsIgnoreLine overridden function from \Codeception\Module
     public function _after(TestCase $test)
     {
-        $this->debug(__CLASS__.'::'.__FUNCTION__.'()');
-
         $unfinished_transaction = ($this->transaction_level > 0);
         if ($unfinished_transaction) {
             $this->debug("Unfinished transaction was found; rolling back (after test '{$test->getName(false)}')");
@@ -181,8 +180,6 @@ class MultiDb extends Module
     // @codingStandardsIgnoreLine overridden function from \Codeception\Module
     public function _afterSuite()
     {
-        $this->debug(__CLASS__.'::'.__FUNCTION__.'()');
-
         foreach ($this->suite_cleanup_actions as $cleanup_action) {
             $this->debugSection('cleanup(after-suite)', $cleanup_action->getDefinition());
             call_user_func($cleanup_action, $this);
@@ -196,9 +193,7 @@ class MultiDb extends Module
     // @codingStandardsIgnoreLine overridden function from \Codeception\Module
     public function _failed(TestCase $test, $fail)
     {
-        /** @var \PHPUnit_Framework_Exception $fail */
-
-        $this->debugSection(__CLASS__.'::'.__FUNCTION__.'()', $fail->getMessage());
+        parent::_failed($test, $fail);
 
         // rollback any transaction that are yet to finish
         if ($this->transaction_level > 0) {
