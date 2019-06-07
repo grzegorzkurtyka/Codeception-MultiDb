@@ -5,13 +5,13 @@
 
 namespace Codeception\Extension;
 
+use Codeception\Configuration;
 use Codeception\Exception\TestRuntimeException;
 use Codeception\Extension\MultiDb\Utils\AsIs;
 use Codeception\Extension\MultiDb\Utils\CleanupAction;
 use Codeception\Lib\Driver\Db as Driver;
 use Codeception\Exception\ModuleException;
 use Codeception\Exception\ModuleConfigException;
-use Codeception\Configuration as Configuration;
 use Codeception\Module;
 use Codeception\TestCase;
 
@@ -98,6 +98,23 @@ class MultiDb extends Module
         }
     }
 
+    /**
+     * Cleanup databases
+     *
+     * @param $connector
+     *
+     * @throws ModuleException
+     */
+    protected function cleanup($connector)
+    {
+        try {
+            $this->debugSection(__CLASS__, "$connector - Cleaning up");
+            $this->getDriver($connector)->cleanup();
+        } catch (\Exception $e) {
+            throw new ModuleException(__CLASS__, $e->getMessage());
+        }
+    }
+
     // HOOK: before scenario
     // @codingStandardsIgnoreLine overridden function from \Codeception\Module
     public function _before(TestCase $test)
@@ -132,15 +149,6 @@ class MultiDb extends Module
         $this->test_cleanup_actions = [];
 
         parent::_after($test);
-    }
-
-    protected function cleanup($connector)
-    {
-        try {
-            $this->getDriver($connector)->cleanup();
-        } catch (\Exception $e) {
-            throw new ModuleException(__CLASS__, $e->getMessage());
-        }
     }
     
     protected function loadDump($connector)
